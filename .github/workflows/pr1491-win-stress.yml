@@ -36,12 +36,10 @@ jobs:
           python -c "import sys, sysconfig, platform; print(platform.platform()); print(platform.machine()); print('Py_GIL_DISABLED', sysconfig.get_config_var('Py_GIL_DISABLED')); print('GIL enabled', sys._is_gil_enabled())"
       - name: Install dependencies
         run: python -m pip install tox tox-uv
-      - name: Run unchanged Windows module with bounded diagnostic timeout
-        run: python -m tox -q -e py -- tests/test_observers_winapi.py --timeout=60 --timeout-method=thread
       - name: Repeat unchanged daemon test in serial 20 times
         shell: bash
         run: |
           for iteration in {1..20}; do
             echo "DAEMON REPETITION $iteration/20"
-            python -m tox -q -e py -- tests/test_observers_winapi.py::test_directory_change_reader_is_a_daemon_thread -n 0 --timeout=30 --timeout-method=thread || exit $?
+            python -m tox -q -e py -- tests/test_observers_winapi.py::test_directory_change_reader_is_a_daemon_thread -n 0 -s --timeout=30 --timeout-method=thread || exit $?
           done
