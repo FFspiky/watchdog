@@ -1,0 +1,47 @@
+name: PR1491 Windows focused repetition
+on:
+  push:
+    branches: [investigate/pr1491-win-stress-20261125]
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: ${{ matrix.target }} ${{ matrix.os }} free-threaded
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [base, head]
+        include:
+          - target: base
+            sha: 1b8499d4e10cad037f59fc3a6761704a18e5f124
+          - target: head
+            sha: 02ecf6afdce74b0fa3f3902607be75a442bdd5e5
+        os: [windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ matrix.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: ${{ matrix.os == 'windows-latest' && '3.15.2t' || '3.13.17t' }}
+          allow-prereleases: true
+          cache: pip
+      - name: Record exact environment
+        run: |
+          git rev-parse HEAD
+          python -VV
+          python -c "import sys, sysconfig, platform; print(platform.platform()); print(platform.machine()); print('Py_GIL_DISABLED', sysconfig.get_config_var('Py_GIL_DISABLED')); print('GIL enabled', sys._is_gil_enabled())"
+      - name: Install dependencies
+        run: python -m pip install tox tox-uv
+      - name: Run unchanged Windows module with bounded diagnostic timeout
+        run: python -m tox -q -e py -- tests/test_observers_winapi.py --timeout=60 --timeout-method=thread
+      - name: Repeat unchanged daemon test in serial 20 times
+        shell: bash
+        run: |
+          for iteration in {1..20}; do
+            echo "DAEMON REPETITION $iteration/20"
+            python -m tox -q -e py -- tests/test_observers_winapi.py::test_directory_change_reader_is_a_daemon_thread -n 0 --timeout=30 --timeout-method=thread || exit $?
+          done
