@@ -1,0 +1,31 @@
+name: PR 1491 Windows 3.15t suite comparison
+on:
+  push:
+    branches: [verify/pr1491-win-suite-98cc3c2]
+permissions:
+  contents: read
+jobs:
+  suite:
+    name: Windows 3.15t on ${{ matrix.label }}
+    runs-on: windows-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: base
+            ref: 5407966d4b819918c0702c32b54ec32da078dab8
+          - label: PR
+            ref: 98cc3c2cdb713f82f3285201e4fcf1b1f5744be1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ matrix.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.15t"
+          allow-prereleases: true
+          cache: pip
+      - run: python -m pip install tox tox-uv
+      - run: python -m tox -q -e py -- --timeout=90 --timeout-method=thread
