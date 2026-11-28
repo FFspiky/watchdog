@@ -1,0 +1,50 @@
+name: PR 1491 shared emitter regression
+on:
+  push:
+    branches: [verify/pr1491-shared-98cc3c2]
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.13"]
+        include:
+          - os: windows-latest
+            python: "3.15t"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 98cc3c2cdb713f82f3285201e4fcf1b1f5744be1
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -r requirements-tests.txt -e ".[watchmedo]"
+      - run: python -m pytest -q tests/test_emitter.py::test_recursive_off
+  bsd:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ["14", "15"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 98cc3c2cdb713f82f3285201e4fcf1b1f5744be1
+          persist-credentials: false
+      - uses: vmactions/freebsd-vm@811efaaac0668df8bfb8308c3ec997b5ab50037b
+        with:
+          release: ${{ matrix.release }}
+          usesh: true
+          prepare: pkg install -y python311 py311-sqlite3
+          run: |
+            set -e
+            python3.11 -m venv /tmp/venv
+            /tmp/venv/bin/python -m pip install -q -r requirements-tests.txt -e '.[watchmedo]'
+            /tmp/venv/bin/python -m pytest -q tests/test_emitter.py::test_recursive_off
